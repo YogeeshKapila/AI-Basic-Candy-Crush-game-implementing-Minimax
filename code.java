@@ -20,7 +20,7 @@ class coordinate
 	
 }
 
-public class homework {
+public class code {
 
 	coordinate ans;
 	static int dim;
