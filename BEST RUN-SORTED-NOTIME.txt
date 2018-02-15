@@ -1,0 +1,267 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
+class coordinate
+{
+	int x;
+	int y;
+	
+	public coordinate(int x, int y) 
+	{
+		this.x = x;
+		this.y = y;
+	}
+	
+	
+}
+
+public class homework {
+
+	coordinate ans;
+	static int dim;
+	float start;
+	static int fruit_types;
+	static float time_remaining;
+	static char[][] matrix;
+	char[] result;
+	int A;
+	int B;
+	
+	
+	char[][] after_gravity(char[][] starred_pos)
+	{	
+		for(int j=0;j<dim;j++)
+		{
+			int i=dim-1;
+			int k=dim-1;
+			while(i>=0 && k>=0)
+			{
+				if(starred_pos[i][j]=='*')
+				{
+					i--;
+				}
+				else if(starred_pos[i][j]!='*' && starred_pos[k][j]=='*')
+				{
+					char temp = starred_pos[i][j];
+					starred_pos[i][j] = starred_pos[k][j];
+					starred_pos[k][j] = temp;
+					k--;
+ 				}
+				else
+				{
+					k--;
+					i--;
+				}
+			}
+		}
+		
+		return starred_pos;	
+	}
+	
+	
+	char[][] pick_fruit_position(char[][] mat,ArrayList<coordinate> sel)
+	{
+		for(coordinate coordinate_to_star : sel)
+		{
+			mat[coordinate_to_star.x][coordinate_to_star.y] = '*';
+		}
+		return mat;
+	}
+	
+	
+	boolean check_neighbour(char[][] mat,int i,int j,char a,boolean[][] visited)
+	{
+		return (i>=0 && i<dim && j>=0 && j<dim && mat[i][j]==a && !visited[i][j]);
+	}
+	
+	ArrayList<ArrayList<coordinate>> get_connected_single_entity(char[][] mat,int i,int j,char a,boolean[][] visited,ArrayList<ArrayList<coordinate>> components)
+	{
+		int rowcheck[] = new int[]{-1,1,0,0};
+		int colcheck[] = new int[]{0,0,-1,1};
+		visited[i][j] = true;
+		for(int p=0;p<4;p++)
+		{
+			if(check_neighbour(mat,i+rowcheck[p],j+colcheck[p],a,visited))
+			{
+				
+		    	coordinate pos = new coordinate(i+rowcheck[p],j+colcheck[p]);
+				components.get(components.size()-1).add(pos);
+				components = get_connected_single_entity(mat,i+rowcheck[p],j+colcheck[p],a,visited,components);
+			}
+		}
+		
+		return components;
+	}
+	
+	ArrayList<ArrayList<coordinate>> calculate_connected_components(char[][] m)
+	{
+		boolean[][] visited = new boolean[dim][dim];
+		ArrayList<ArrayList<coordinate>> components = new ArrayList<ArrayList<coordinate>>();		
+		for(int i=0;i<dim;i++)
+		{
+			for(int j=0;j<dim;j++)
+			{
+				if(!visited[i][j] && m[i][j]!='*')
+				{
+					coordinate pos = new coordinate(i,j);
+					ArrayList<coordinate> inner = new ArrayList<coordinate>();
+					inner.add(pos);
+					components.add(inner);
+					components = get_connected_single_entity(m,i,j,m[i][j],visited,components);
+				}
+			}
+		}
+			Collections.sort(components,new Comparator<ArrayList<coordinate>>() {
+			    public int compare(ArrayList<coordinate> a, ArrayList<coordinate> b) {
+			        return ((Integer)(b.size())).compareTo(a.size());
+			    }
+			});
+			
+			return components;
+	}
+	
+	char[][] pick_burst_grav(char[][] m,ArrayList<coordinate> selection)
+	{
+		char[][] temp = new char[dim][dim];
+		for(int i=0;i<dim;i++)
+			for(int j=0;j<dim;j++)
+				temp[i][j] = m[i][j];
+		temp = pick_fruit_position(temp,selection);
+		temp = after_gravity(temp);
+		return temp;
+	}
+	
+	int MAX_VAL(char[][] mat, int alpha, int beta,int level,int A_S,int B_S, boolean call)
+	{
+		if(level == 4)// || System.nanoTime()-start > time_remaining)
+		{
+			return A_S-B_S;
+		}
+				
+		ArrayList<ArrayList<coordinate>> connected_components = new ArrayList<ArrayList<coordinate>>();
+		connected_components = calculate_connected_components(mat);
+		if(connected_components.isEmpty())
+		{
+			return A_S-B_S;
+		}
+		
+		    int previous;
+			for(ArrayList<coordinate> c : connected_components)
+				{
+				  int A_SCORE = A_S + (int) Math.pow(c.size(),2);
+				  char[][] state_after_proc = pick_burst_grav(mat,c); 
+				  
+				  previous = alpha;
+				  alpha = Math.max(alpha, MIN_VAL(state_after_proc,alpha,beta,level+1,A_SCORE,B_S));
+				  if(previous!=alpha && call)
+				  {
+					  ans = c.get(0);
+					  matrix = state_after_proc;
+				  }
+				  if(alpha >= beta)
+					  return beta;
+				}
+		return alpha;
+	}
+	
+	int MIN_VAL(char[][] mat, int alpha, int beta,int level,int A_S,int B_S)
+	{		
+		if(level == 4)// || System.nanoTime()-start > time_remaining)
+		{
+			return A_S-B_S;
+		}
+				
+		ArrayList<ArrayList<coordinate>> connected_components = new ArrayList<ArrayList<coordinate>>();
+		connected_components = calculate_connected_components(mat);
+		
+		if(connected_components.isEmpty())
+		{
+			return A_S-B_S;
+		}
+		
+		
+		for(ArrayList<coordinate> c : connected_components)
+		{
+		  int B_SCORE = B_S + (int) Math.pow(c.size(),2);
+		  char[][] state_after_proc = pick_burst_grav(mat,c); 
+		  beta = Math.min(beta, MAX_VAL(state_after_proc,alpha,beta,level+1,A_S,B_SCORE,false));
+		  if(beta <= alpha)
+			  return alpha;
+		}
+		return beta;
+	}
+	
+	public static void main(String[] args)
+	{
+		String finput = "input.txt";
+		String foutput = "output.txt";
+		BufferedReader input = null;
+		FileReader fr = null;
+		FileWriter fw =null;
+		PrintWriter po = null;
+		homework h = new homework();
+		
+		try {
+     
+			fr = new FileReader(finput);
+			input = new BufferedReader(fr);
+            fw = new FileWriter(foutput);
+            po = new PrintWriter(fw);
+			String CurrentLine;
+            dim = Integer.parseInt(input.readLine().trim());
+            matrix = new char[dim][dim];
+            fruit_types = Integer.parseInt(input.readLine().trim());            
+            time_remaining = (float) ((float) Float.parseFloat(input.readLine().trim()) * Math.pow(10, 1));  
+            for(int i=0;i<dim;i++)
+            {
+            	CurrentLine = input.readLine().trim();
+            	for(int j=0;j<CurrentLine.length();j++)
+            	{
+            		matrix[i][j] = CurrentLine.charAt(j);
+            	}	
+            }
+		}
+		catch(Exception e){}
+		
+		int alpha = Integer.MIN_VALUE;
+		int  beta = Integer.MAX_VALUE;
+		int level = 0;
+		int score_a=0,score_b=0;
+	    h.start = System.nanoTime();
+		alpha = h.MAX_VAL(matrix,alpha,beta,level,score_a,score_b,true);
+		char col = (char) ( h.ans.y + 65);
+		
+      po.printf("%c%d%n",col, (h.ans.x+1));
+		for(int i=0;i<dim;i++)
+		{
+			for(int j=0;j<dim;j++)
+			po.printf("%c",matrix[i][j]);
+			po.printf("%n");
+		}
+				
+		try
+		{
+		po.close();
+		fr.close();
+		fw.close();
+		}
+		catch(Exception e){}
+		
+		/*System.out.println(col +""+ (h.ans.x+1));
+		for(int i=0;i<dim;i++)
+		{
+			for(int j=0;j<dim;j++)
+			System.out.print(matrix[i][j]+"");
+			System.out.println();
+		}
+		
+		long end = System.nanoTime();
+		System.out.println((end-h.start)/1000000000.0);
+	*/
+		}	
+	}
